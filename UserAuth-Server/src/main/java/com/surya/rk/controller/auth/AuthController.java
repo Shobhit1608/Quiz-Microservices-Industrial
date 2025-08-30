@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
-@CrossOrigin("*")
+
 public class AuthController {
 
 	private final AuthService authService;
@@ -63,32 +63,64 @@ public class AuthController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(createdUserDto);
 	}
 	
-
+@PostMapping("/login")
+    public AuthenticationResponse login(@RequestBody AuthenticationRequest authenticationRequest) {
+        try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                authenticationRequest.getEmail(), authenticationRequest.getPassword()));
+        } catch (BadCredentialsException e) {
+            throw new BadCredentialsException("Incorrect password or email!");
+        }
+ 
+        Optional<User> optionalUser = userRepository.findFirstByEmail(authenticationRequest.getEmail());
+        
+        if (optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            
+            // Create claims with role information
+            Map<String, Object> claims = new HashMap<>();
+            claims.put("role", user.getUserRole().name());
+            claims.put("userRole", user.getUserRole().name());
+            
+            // Generate token with claims
+            final UserDetails userDetails = userService.userDetailsService().loadUserByUsername(authenticationRequest.getEmail());
+            final String jwtToken = jwtUtil.generateToken(userDetails);
+            
+            AuthenticationResponse authenticationResponse = new AuthenticationResponse();
+            authenticationResponse.setJwt(jwtToken);
+            authenticationResponse.setUserId(user.getId());
+            authenticationResponse.setUserRole(user.getUserRole());
+            
+            return authenticationResponse;
+        }
+        
+        throw new BadCredentialsException("User not found");
+    }
 	
 
 	
-	@PostMapping("/login")
-	public AuthenticationResponse login(@RequestBody AuthenticationRequest authenticationRequest)
-	{
-		try  //that user with that email and pass exist in our db 
-		{
-			authenticationManager.authenticate(new UsernamePasswordAuthenticationToken
-					(authenticationRequest.getEmail(), authenticationRequest.getPassword()));
-		}catch (BadCredentialsException e) {
-			throw new BadCredentialsException("Incorrect password or email!");
-		}
-		    final UserDetails userDetails=userService.userDetailsService().loadUserByUsername(authenticationRequest.getEmail());
-			Optional<User>optionalUser=	userRepository.findFirstByEmail(authenticationRequest.getEmail());
-			final String jwtToken=jwtUtil.generateToken(userDetails);
-			AuthenticationResponse authenticationResponse=new AuthenticationResponse();
-			if(optionalUser.isPresent())
-			{
-				authenticationResponse.setJwt(jwtToken);
-				authenticationResponse.setUserId(optionalUser.get().getId());
-				authenticationResponse.setUserRole(optionalUser.get().getUserRole());
-			}
-			return  authenticationResponse;
-	}
+	// @PostMapping("/login")
+	// public AuthenticationResponse login(@RequestBody AuthenticationRequest authenticationRequest)
+	// {
+	// 	try  //that user with that email and pass exist in our db 
+	// 	{
+	// 		authenticationManager.authenticate(new UsernamePasswordAuthenticationToken
+	// 				(authenticationRequest.getEmail(), authenticationRequest.getPassword()));
+	// 	}catch (BadCredentialsException e) {
+	// 		throw new BadCredentialsException("Incorrect password or email!");
+	// 	}
+	// 	    final UserDetails userDetails=userService.userDetailsService().loadUserByUsername(authenticationRequest.getEmail());
+	// 		Optional<User>optionalUser=	userRepository.findFirstByEmail(authenticationRequest.getEmail());
+	// 		final String jwtToken=jwtUtil.generateToken(userDetails);
+	// 		AuthenticationResponse authenticationResponse=new AuthenticationResponse();
+	// 		if(optionalUser.isPresent())
+	// 		{
+	// 			authenticationResponse.setJwt(jwtToken);
+	// 			authenticationResponse.setUserId(optionalUser.get().getId());
+	// 			authenticationResponse.setUserRole(optionalUser.get().getUserRole());
+	// 		}
+	// 		return  authenticationResponse;
+	// }
 
 
 	
